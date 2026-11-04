@@ -19,6 +19,9 @@ La plateforme propose :
 - Interface complète pour les prestataires (salons et indépendants)
 ---
  
+## Docs
+Documentation word( en Brouillon) [Lien vers le doc](https://docs.google.com/document/d/1vaJXxq72N8pdWMHnOw1gvr8BpvN97334knPUoGiQbbg/edit?tab=t.0)
+
 ## Fonctionnalités principales
  
 ### Côté Client
