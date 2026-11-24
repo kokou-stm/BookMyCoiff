@@ -1,0 +1,94 @@
+# Tests à chaque push / pull request, puis déploiement sur Azure App Service à chaque push sur master.
+# Mise en place (une seule fois) : voir DEPLOY.md.
+name: Tests et déploiement Azure
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: "3.14"   # doit correspondre à la version Python de l'App Service
+
+jobs:
+  build:
+    name: Tests et paquet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Dépendances
+        run: pip install -r requirements.txt
+
+      - name: Tests
+        run: python manage.py test barbershopApp
+
+      - name: Vérifications de production et fichiers statiques
+        env:
+          # Valeurs factices : uniquement pour valider la configuration de production, aucune connexion n'est faite
+          DJANGO_ENV: production
+          DJANGO_SECRET_KEY: ci-only-not-a-real-secret-${{ github.run_id }}-${{ github.sha }}
+          DJANGO_ALLOWED_HOSTS: ci.example.com
+          DATABASE_URL: postgres://ci:ci@localhost:5432/ci
+        run: |
+          python manage.py check --deploy --fail-level WARNING
+          python manage.py makemigrations --check --dry-run
+          python manage.py collectstatic --noinput
+
+      # Liste blanche : seuls le code et les fichiers statiques partent sur Azure
+      # (jamais db.sqlite3, media/, venv/ ni les fichiers personnels du dossier).
+      - name: Paquet de déploiement
+        run: |
+          zip -qr release.zip manage.py requirements.txt startup.sh barbershopApp barbershopProject staticfiles \
+            -x '*__pycache__*' '*.pyc'
+          unzip -l release.zip | tail -1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: release.zip
+          retention-days: 7
+
+  deploy:
+    name: Déploiement Azure
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.webapp-url }}
+    permissions:
+      id-token: write   # connexion à Azure sans mot de passe (OpenID Connect)
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+
+      - name: Connexion à Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Déploiement sur App Service
+        id: deploy
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          package: release.zip

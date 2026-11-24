@@ -1,0 +1,18 @@
+<header class="topbar">
+  <div class="container topbar-inner">
+    <span class="topbar-side"></span>
+    <a href="{% url 'home' %}" class="logo">Book<span>My</span>Coiff</a>
+    <nav class="topbar-side topbar-nav">
+      {% if user.is_authenticated %}
+        <a href="{% url 'my_salons' %}" class="topbar-link">Mes salons</a>
+        <form method="post" action="{% url 'logout' %}" class="topbar-logout">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-ghost">Déconnexion</button>
+        </form>
+      {% else %}
+        <a href="{% url 'login' %}" class="topbar-link">Connexion</a>
+        <a href="{% url 'salon_register' %}" class="btn btn-primary">Inscrire mon salon</a>
+      {% endif %}
+    </nav>
+  </div>
+</header>

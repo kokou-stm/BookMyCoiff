@@ -1,0 +1,47 @@
+{% extends "barbershopApp/base.html" %}
+
+{% block title %}Mes salons — BookMyCoiff{% endblock %}
+
+{% block content %}
+<div class="form-head form-head-row">
+  <div>
+    <h1>Mes salons</h1>
+    <p class="muted">Bonjour {{ user.first_name|default:user.username }}.</p>
+  </div>
+  <a href="{% url 'salon_register' %}" class="btn btn-primary">Ajouter un salon</a>
+</div>
+
+{% for salon in salons %}
+  <article class="salon-row">
+    {% if salon.cover_photo %}
+      <img src="{{ salon.cover_photo.url }}" alt="" class="salon-row-img">
+    {% else %}
+      <div class="salon-row-img salon-row-initial">{{ salon.name|first|upper }}</div>
+    {% endif %}
+    <div class="salon-row-body">
+      <div class="salon-row-title">
+        <h2>{{ salon.name }}</h2>
+        {% if salon.is_published %}
+          <span class="status status-ok">Publié</span>
+        {% else %}
+          <span class="status status-wait">En attente de validation</span>
+        {% endif %}
+      </div>
+      <p class="muted">{{ salon.address }}, {{ salon.city }} · {{ salon.phone }}</p>
+      <p class="muted">
+        {{ salon.workstation_count }} poste{{ salon.workstation_count|pluralize }} ·
+        {{ salon.professionals.all|length }} coiffeur{{ salon.professionals.all|length|pluralize }} ·
+        {% with days=salon.opening_hours.all|length %}ouvert {{ days }} jour{{ days|pluralize }} par semaine{% endwith %}
+      </p>
+      {% if salon.is_published %}
+        <a href="{% url 'home' %}?salon={{ salon.slug }}" class="link">Voir ma fiche publique</a>
+      {% endif %}
+    </div>
+  </article>
+{% empty %}
+  <div class="empty">
+    <p class="empty-title">Vous n'avez pas encore de salon</p>
+    <p class="muted">Inscrivez-le en quelques minutes.</p>
+  </div>
+{% endfor %}
+{% endblock %}

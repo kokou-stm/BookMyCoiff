@@ -1,0 +1,112 @@
+{% extends "barbershopApp/base.html" %}
+{% load static %}
+
+{% block title %}Inscrire mon salon — BookMyCoiff{% endblock %}
+
+{% block head %}
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+{% endblock %}
+
+{% block content %}
+<div class="form-head">
+  <h1>Inscrire mon salon</h1>
+  <p class="muted">Gratuit. Votre salon apparaîtra dans les résultats après une vérification rapide par notre équipe.</p>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="form-card" novalidate>
+  {% csrf_token %}
+
+  <!-- Étapes : remplies par salon_form.js à partir des data-step des fieldsets -->
+  <ol class="stepper" hidden></ol>
+
+  {% if account_form.non_field_errors %}
+    <div class="form-errors">{% for error in account_form.non_field_errors %}<p>{{ error }}</p>{% endfor %}</div>
+  {% endif %}
+
+  {% if account_form %}
+  <fieldset class="form-section step" data-step="Identité">
+    <legend>Votre compte</legend>
+    <p class="muted section-hint">Déjà inscrit ? <a href="{% url 'login' %}?next={% url 'salon_register' %}" class="link">Connectez-vous</a> pour ajouter un salon.</p>
+    <div class="grid-2">
+      {% include "barbershopApp/_field.html" with field=account_form.first_name %}
+      {% include "barbershopApp/_field.html" with field=account_form.last_name %}
+      {% include "barbershopApp/_field.html" with field=account_form.email wide=True %}
+      {% include "barbershopApp/_field.html" with field=account_form.password1 %}
+      {% include "barbershopApp/_field.html" with field=account_form.password2 %}
+    </div>
+  </fieldset>
+  {% endif %}
+
+  <fieldset class="form-section step" data-step="Salon">
+    <legend>Votre salon</legend>
+    <div class="grid-2">
+      {% include "barbershopApp/_field.html" with field=form.name wide=True %}
+      {% include "barbershopApp/_field.html" with field=form.description wide=True %}
+      {% include "barbershopApp/_field.html" with field=form.cover_photo wide=True %}
+      {% include "barbershopApp/_field.html" with field=form.workstation_count %}
+      <div class="checks">
+        <label class="check">{{ form.offers_home_service }} {{ form.offers_home_service.label }}</label>
+        <label class="check">{{ form.owner_is_pro }} {{ form.owner_is_pro.label }}</label>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset class="form-section step" data-step="Contact">
+    <legend>Contact</legend>
+    <div class="grid-2">
+      {% include "barbershopApp/_field.html" with field=form.phone %}
+      {% include "barbershopApp/_field.html" with field=form.whatsapp %}
+      {% include "barbershopApp/_field.html" with field=form.email wide=True %}
+    </div>
+  </fieldset>
+
+  <fieldset class="form-section step" data-step="Adresse">
+    <legend>Adresse</legend>
+    <div class="grid-2">
+      {% include "barbershopApp/_field.html" with field=form.address %}
+      {% include "barbershopApp/_field.html" with field=form.city %}
+    </div>
+    {{ form.latitude }}{{ form.longitude }}
+    <div class="map-block{% if form.latitude.errors %} has-error{% endif %}">
+      <div class="map-bar">
+        <span id="map-status" class="muted">Cliquez sur la carte pour placer votre salon.</span>
+        <button type="button" id="map-locate" class="btn btn-light btn-sm">Je suis au salon : utiliser ma position</button>
+      </div>
+      <div id="salon-map" class="salon-map" data-lat="{{ form.latitude.value|default:'' }}" data-lng="{{ form.longitude.value|default:'' }}"></div>
+      {% for error in form.latitude.errors %}<small class="error">{{ error }}</small>{% endfor %}
+    </div>
+  </fieldset>
+
+  <fieldset class="form-section step" data-step="Horaires">
+    <legend>Horaires d'ouverture</legend>
+    {% if form.non_field_errors %}
+      <div class="form-errors">{% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}</div>
+    {% endif %}
+    <p class="muted section-hint">Vos horaires habituels. Vous pourrez ouvrir ou fermer des créneaux au jour le jour ensuite.</p>
+    <div class="hours-table">
+      {% for row in form.hours_rows %}
+        <div class="hours-row">
+          <label class="check">{{ row.open }} {{ row.label }}</label>
+          {{ row.start }}<span class="muted">à</span>{{ row.end }}
+          {% for error in row.start.errors %}<small class="error">{{ error }}</small>{% endfor %}
+          {% for error in row.end.errors %}<small class="error">{{ error }}</small>{% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+  </fieldset>
+
+  <div class="form-actions">
+    <button type="button" class="btn btn-ghost" data-prev hidden>← Précédent</button>
+    <span class="step-count muted" hidden></span>
+    <button type="button" class="btn btn-primary" data-next hidden>Suivant →</button>
+    <button type="submit" class="btn btn-primary" data-submit>Inscrire mon salon</button>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="{% static 'barbershopApp/salon_form.js' %}"></script>
+{% endblock %}

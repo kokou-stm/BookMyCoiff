@@ -1,0 +1,30 @@
+{% load static %}<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}BookMyCoiff{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'barbershopApp/home.css' %}">
+  <link rel="stylesheet" href="{% static 'barbershopApp/account.css' %}">
+  {% block head %}{% endblock %}
+</head>
+<body class="page-account">
+
+{% include "barbershopApp/_topbar.html" %}
+
+<main class="container account-main">
+  {% if messages %}
+    <ul class="flash">
+      {% for message in messages %}<li class="flash-{{ message.tags }}">{{ message }}</li>{% endfor %}
+    </ul>
+  {% endif %}
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="footer">
+  <div class="container"><span>© BookMyCoiff</span></div>
+</footer>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

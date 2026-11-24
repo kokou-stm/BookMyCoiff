@@ -1,0 +1,115 @@
+Plateforme BookMyCoiff: plateforme de réservation,de fidélisation clients, de vente d'articles pour la coiffure
+
+Besoins à combler:
+
+Niveau client
+1. savoir le salon de coiffure le plus proche et à mon goût 
+      - localisation exacte des salons environnants (avec leur rating en étoile de base)  // Il y a un rating de base/vs ratings des clients
+      - distance
+2. savoir le standard du salon (lorsque le client clique sur un salon)
+      - budget: prix de chaque type de service avec photos à l’appui // Phase nécessitant du travail de photographe
+      - services proposés 
+      - outillage, équipements  (liste exhaustive si possible)
+      - cadre (photos)
+3. Gagner en temps
+      - réserver un créneau spécifique pour gagner en temps d'attente
+      - discuter avec le prestataire même avant de se déplacer (choisir un modèle, discuter un modèle spécifique. Nécessite les contacts du salon)
+      - gagner le temps de déplacement en faisant déplacer le prestataire (cas des services à domicile)
+4. (Pour les premières fois), besoin de confiance 
+      - avoir une vue des témoignages, accomplissements et qualité de service du prestataire 
+      - connaître les qualifications spécifiques 
+      - Réserver avec son barbier préféré
+
+Niveau prestataire
+1. Besoin de visibilité 
+     - mieux se positionner et devenir visible sur le marché 
+     - montrer  et valoriser son talent et sa qualité 
+     - fournir des services de proximité 
+2. Besoin de mieux gérer flux/temps/capacité de service
+     - répartir le flux par réservation
+     - gérer son temps (flag ouvert/fermé actionnable par le barbier; possibilité de montrer en avance les créneaux dispo ou les créneaux où il est ouvert)
+     - capitaliser sur les heures creuses
+     - efficacité: chaque service proposé a un timing spécifique alloué // prévoir une marge d’incertitude pour les imprévus et autres. Comment allier chaque service avec son timing et son prix (je pense que c’est le barbier qui fixe le timing)
+3. Améliorer la relation client
+     - espaces des promotions (peut publier une promo=== va dans le centre des notifications des clients)
+     - fidéliser la clientèle (par des tarifs spéciaux, éditer le process)
+     - avoir des retours clients (notation du salon et notation individuelle des professionnels et avis des clients)
+     - intégrer un réseau plus large de fournisseurs de la même gamme ou gamme complémentaire
+    - Points de fidélités accumulés par les clients en fonction de telle ou telle action faite. 
+    - Système de parrainage avec récompense (une coiffure gratuite ou coût reduite sur telle ou telle chose)
+4. Donner l'occasion aux particuliers (qui n'ont pas de salon) de trouver des clients ponctuels** (mettre en place une politique d’engagement, de vérification et de validation des profils particuliers)
+
+
+Niveau commerce Général-espace boutique:
+1. Vente d'articles de coiffure personnelle (peigne, ciseaux, produits afro...) //phase de prospection au niveau des boutiques
+2. Recommander des produits aux clients
+
+Commencer par:
+- recensement des besoins des coiffures
+- réunir une équipe 
+       - 2 barbiers bêta population 
+       - codeur
+       - commercial
+De façon basique, il y a une heure d’ouverture et une heure de fermeture
+Mais au début de la journée, il peut mettre les créneaux qui seront disponibles au cas où il aura des indisponibilités (pour ne pas faire déplacer un client inutilement)
+Page principale: Scrapper les sites similaires et proposer un design adapté (les choses qui doivent être à la page d’accueil)
+Lorsqu’on ouvre un salon:
+- on va toute suite voir le cadre, et le rating (note en étoile)
+- les services proposés ou réalisés (quelques photos), 
+- le catalogue + temps de chaque service
+- les outils
+- la liste des professionnels et leurs rankings individuels
+- un peu vers le bas, les témoignages des clients
+- créneaux disponibles par professionnel // réserver un créneau avec un professionnel spécifique
+Pour ça, comment synchroniser les données d’un salon spécifique? // chaque pro compte  sous l’égide de son salon, 
+(Éviter la saturation de la page d’accueil aussi, donc mettre que ce qui est nécessaire : Les besoins spécifiques du client : 
+Ce n’est pas mieux qu’il voit toute suite sur la page d'accueil le bouton “Réserver”, et dans la liste des salon proposées, il clique et un popup lui montre les détails du salon sans être redirigé vers une autre page? 
+Filtres rapides :
+Une autre option un peu plus bas:
+      Liste de salons (cartes) :
+Photo du salon
+Nom + adresse courte
+Note étoiles + nombre d’avis
+X réservations ce mois
+Bouton « Voir & réserver »
+Possibilité de voir le modèle des pages AirBnB par exemple
+Needs
+Pour chaque salon il faudra estimer la capacité: nombre de professionnels, nombre de poste opérationnel, 
+Plan de dév de la plateforme
+Aller aux prestataires pour avoir leurs besoins complémentaires
+Faire une première version pour stimuler l’engouement chez les salons clients
+Procédures de paiement client et ségrégation des parts (part salon, part système)
+Frais ou rentabilisation des inscriptions des salons: procédures et termes
+Call line dans l’appli? Appeler directement dans l’appli? // Possible mais coûteux en ressource. C’est pas mieux de mettre le numéro pour qu’on appelle par appel téléphonique? et avoir un chat interne ?
+Paiement-remboursement
+Procédure cas d’annulation, de modification de créneau (soit par le client ou par le coiffeur)
+Procédure cas de retard du client ou versa: proposition 15 mins de retard annule la réservation
+Mettre en place une politique d’engagement, de vérification et de validation des profils particuliers
+Politique relative aux boutiques
+
+
+
+Organisation des fonctionnalités
+
+V1 — Lancement bêta (2 barbiers)
+1. Fiche salon, pros, catalogue services (prix + durée + marge)        ✅ fait
+2. Disponibilités : horaires de base + ajustements du matin            ✅ fait
+3. Page d'accueil : recherche, proximité, filtres, fiche en popup      ✅ fait
+4. Comptes clients (inscription / connexion)
+5. Réservation d'un créneau avec un pro précis
+6. Annulation / modification / retard (règle des 15 min)
+7. Notifications (confirmation, rappel)
+
+V2 — Confiance et fidélisation
+8. Avis et notes (salon + pro individuel)
+9. Chat client ↔ salon (+ numéro d'appel direct)
+10. Promotions → centre de notifications clients
+11. Points de fidélité et parrainage
+12. Espace pro dédié (remplace l'admin Django)
+
+V3 — Monétisation et extension
+13. Paiement en ligne, remboursement, partage salon / plateforme
+14. Abonnement / frais d'inscription des salons
+15. Services à domicile et profils particuliers (vérification)
+16. Boutique d'articles et recommandations produits
+

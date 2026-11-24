@@ -14,9 +14,27 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import path
+from django.contrib.auth import views as auth_views
+from django.urls import include, path
+
+from barbershopApp.forms import LoginForm
+from barbershopApp.views import home, my_salons, salon_register
 
 urlpatterns = [
+    path('', home, name='home'),
+    path('inscrire-mon-salon/', salon_register, name='salon_register'),
+    path('mes-salons/', my_salons, name='my_salons'),
+    path('connexion/', auth_views.LoginView.as_view(
+        template_name='barbershopApp/login.html', authentication_form=LoginForm, redirect_authenticated_user=True,
+    ), name='login'),
+    path('deconnexion/', auth_views.LogoutView.as_view(), name='logout'),
     path('admin/', admin.site.urls),
+    path('api/', include('barbershopApp.urls')),
+    path('api-auth/', include('rest_framework.urls')),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

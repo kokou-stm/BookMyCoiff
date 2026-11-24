@@ -1,0 +1,20 @@
+{% extends "barbershopApp/base.html" %}
+
+{% block title %}Connexion — BookMyCoiff{% endblock %}
+
+{% block content %}
+<div class="auth-box">
+  <h1>Connexion</h1>
+  <form method="post" class="form-card" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ next }}">
+    {% if form.non_field_errors %}
+      <div class="form-errors">{% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}</div>
+    {% endif %}
+    {% include "barbershopApp/_field.html" with field=form.username %}
+    {% include "barbershopApp/_field.html" with field=form.password %}
+    <button type="submit" class="btn btn-primary btn-block">Se connecter</button>
+  </form>
+  <p class="muted auth-alt">Pas encore de compte ? <a href="{% url 'salon_register' %}" class="link">Inscrire mon salon</a></p>
+</div>
+{% endblock %}

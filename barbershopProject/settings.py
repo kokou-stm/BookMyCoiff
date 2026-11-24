@@ -10,22 +10,45 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
+import os
 from pathlib import Path
+
+import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
+# Environnement
+# En local, rien à configurer : réglages de développement par défaut.
+# En production (Azure App Service, ou DJANGO_ENV=production), tout vient des variables d'environnement.
+# Azure App Service définit WEBSITE_HOSTNAME automatiquement (ex. bookmycoiff.azurewebsites.net).
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-eock&v83%uy(ox$aw*9-u4-v0ldnzf08kiwo$7!*!d!jh4d2qc'
+def env_bool(name, default=False):
+    return os.environ.get(name, str(default)).strip().lower() in ('1', 'true', 'yes', 'on')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
 
-ALLOWED_HOSTS = []
+def env_list(name):
+    return [item.strip() for item in os.environ.get(name, '').split(',') if item.strip()]
+
+
+AZURE_HOSTNAME = os.environ.get('WEBSITE_HOSTNAME', '')
+IS_PRODUCTION = os.environ.get('DJANGO_ENV') == 'production' or bool(AZURE_HOSTNAME)
+
+DEBUG = env_bool('DJANGO_DEBUG', default=not IS_PRODUCTION)
+
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
+if not SECRET_KEY:
+    if IS_PRODUCTION:
+        raise ImproperlyConfigured('DJANGO_SECRET_KEY doit être défini en production.')
+    SECRET_KEY = 'django-insecure-eock&v83%uy(ox$aw*9-u4-v0ldnzf08kiwo$7!*!d!jh4d2qc'  # développement uniquement
+
+# Domaines servis : celui d'Azure + les domaines personnalisés (DJANGO_ALLOWED_HOSTS=bookmycoiff.com,www.bookmycoiff.com)
+ALLOWED_HOSTS = env_list('DJANGO_ALLOWED_HOSTS') + ([AZURE_HOSTNAME] if AZURE_HOSTNAME else [])
+if DEBUG and not ALLOWED_HOSTS:
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]']
+CSRF_TRUSTED_ORIGINS = [f'https://{host}' for host in ALLOWED_HOSTS if not host.startswith(('localhost', '127.', '['))]
 
 
 # Application definition
@@ -37,10 +60,14 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'barbershopApp',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # Sert les fichiers statiques en production (collectstatic → staticfiles/)
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -72,12 +99,21 @@ WSGI_APPLICATION = 'barbershopProject.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Production : PostgreSQL via DATABASE_URL, ex.
+#   postgres://utilisateur:motdepasse@serveur.postgres.database.azure.com:5432/bookmycoiff?sslmode=require
+# Local : SQLite.
+if os.environ.get('DATABASE_URL'):
+    DATABASES = {'default': dj_database_url.config(conn_max_age=600, conn_health_checks=True)}
+elif IS_PRODUCTION:
+    # Le disque de l'application est réinitialisé à chaque déploiement : SQLite y perdrait les données
+    raise ImproperlyConfigured('DATABASE_URL doit être défini en production.')
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
 
 
 # Password validation
@@ -102,7 +138,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'fr'
 
 TIME_ZONE = 'UTC'
 
@@ -115,13 +151,98 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+MEDIA_URL = 'media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    # En production : noms de fichiers versionnés + compression (cache navigateur longue durée)
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage' if IS_PRODUCTION
+        else 'django.contrib.staticfiles.storage.StaticFilesStorage',
+    },
+}
+
+# Photos envoyées par les salons : Azure Blob Storage si configuré (indispensable en production,
+# le disque de l'application ne survit pas aux déploiements).
+if os.environ.get('AZURE_STORAGE_CONNECTION_STRING'):
+    STORAGES['default'] = {
+        'BACKEND': 'storages.backends.azure_storage.AzureStorage',
+        'OPTIONS': {
+            'connection_string': os.environ['AZURE_STORAGE_CONNECTION_STRING'],
+            'azure_container': os.environ.get('AZURE_MEDIA_CONTAINER', 'media'),
+            'overwrite_files': False,
+            # Liens signés valables 24 h : fonctionne même si l'accès public au compte est désactivé
+            'expiration_secs': 24 * 3600,
+        },
+    }
 
 
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
-MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
-    },
+# Local : les e-mails s'affichent dans le terminal. Production : SMTP (EMAIL_HOST, EMAIL_PORT, EMAIL_HOST_USER,
+# EMAIL_HOST_PASSWORD), par ex. Azure Communication Services, Brevo ou SendGrid.
+if IS_PRODUCTION:
+    MAILERS = {
+        'default': {
+            'BACKEND': 'django.core.mail.backends.smtp.EmailBackend',
+            'OPTIONS': {
+                'host': os.environ.get('EMAIL_HOST', 'localhost'),
+                'port': int(os.environ.get('EMAIL_PORT', '587')),
+                'username': os.environ.get('EMAIL_HOST_USER', ''),
+                'password': os.environ.get('EMAIL_HOST_PASSWORD', ''),
+                'use_tls': env_bool('EMAIL_USE_TLS', default=True),
+                'timeout': 10,
+            },
+        },
+    }
+else:
+    MAILERS = {
+        'default': {
+            'BACKEND': 'django.core.mail.backends.console.EmailBackend',
+        },
+    }
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'BookMyCoiff <no-reply@bookmycoiff.local>')
+
+
+# Django REST Framework
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticated'],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
+}
+
+# Devise affichée à côté des prix
+BOOKMYCOIFF_CURRENCY = 'FCFA'
+
+# Pages web : connexion des gérants de salon
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'my_salons'
+LOGOUT_REDIRECT_URL = 'home'
+
+
+# ---------------------------------------------------------------------------
+# Sécurité HTTPS (production). Azure termine le TLS et transmet X-Forwarded-Proto.
+# ---------------------------------------------------------------------------
+if IS_PRODUCTION:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = env_bool('DJANGO_SECURE_SSL_REDIRECT', default=True)
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    # HSTS : à augmenter (31536000) une fois le domaine définitif validé
+    SECURE_HSTS_SECONDS = int(os.environ.get('DJANGO_HSTS_SECONDS', '3600'))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool('DJANGO_HSTS_INCLUDE_SUBDOMAINS', default=False)
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    # Sous-domaines et liste de préchargement HSTS : décision à prendre avec le domaine définitif
+    SILENCED_SYSTEM_CHECKS = ['security.W005', 'security.W021']
+
+# Journaux dans la sortie standard : visibles dans le « Flux de journaux » d'Azure
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {'console': {'class': 'logging.StreamHandler'}},
+    'root': {'handlers': ['console'], 'level': os.environ.get('DJANGO_LOG_LEVEL', 'INFO')},
 }

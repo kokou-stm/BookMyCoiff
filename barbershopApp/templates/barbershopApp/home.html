@@ -1,0 +1,225 @@
+{% load static %}<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BookMyCoiff — Trouvez et réservez votre coiffeur</title>
+  <meta name="description" content="Trouvez le salon de coiffure le plus proche, comparez les prix et les coiffeurs, réservez votre créneau.">
+  <link rel="stylesheet" href="{% static 'barbershopApp/home.css' %}">
+</head>
+<body data-currency="{{ currency }}">
+
+{% include "barbershopApp/_topbar.html" %}
+
+<section class="hero">
+  <div class="container hero-grid">
+    <div class="hero-text">
+      <h1>Trouvez et réservez votre coiffeur près de chez vous</h1>
+
+      <form method="get" action="{% url 'home' %}" class="search" id="search-form" role="search">
+        <div class="search-pill">
+          <label class="search-field">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M10.5 18a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15Zm5.3-2.2L21 21"/></svg>
+            <input type="search" name="search" value="{{ filters.search }}" placeholder="Service, coiffeur ou salon" aria-label="Service, coiffeur ou salon">
+          </label>
+          <span class="search-divider" aria-hidden="true"></span>
+          <label class="search-field">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M12 21s-7-6.75-7-12a7 7 0 1 1 14 0c0 5.25-7 12-7 12Z"/><circle cx="12" cy="9" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+            <input type="search" name="where" value="{{ filters.where }}" placeholder="{% if located %}Autour de moi{% else %}Ville ou quartier{% endif %}" aria-label="Ville ou quartier">
+          </label>
+          <button type="button" class="search-locate{% if located %} is-on{% endif %}" id="locate-btn"
+                  aria-pressed="{% if located %}true{% else %}false{% endif %}"
+                  title="{% if located %}Ne plus trier par distance{% else %}Trouver les salons autour de moi{% endif %}">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm9 3h-2.07A7 7 0 0 0 13 5.07V3h-2v2.07A7 7 0 0 0 5.07 11H3v2h2.07A7 7 0 0 0 11 18.93V21h2v-2.07A7 7 0 0 0 18.93 13H21v-2Zm-9 6a5 5 0 1 1 0-10 5 5 0 0 1 0 10Z"/></svg>
+            <span>Autour de moi</span>
+          </button>
+          <button type="submit" class="search-go" aria-label="Rechercher">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M10.5 18a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15Zm5.3-2.2L21 21"/></svg>
+          </button>
+        </div>
+        <input type="hidden" name="lat" value="{{ filters.lat }}">
+        <input type="hidden" name="lng" value="{{ filters.lng }}">
+
+        <div class="filters-bar">
+          <button type="button" class="filters-toggle{% if active_filters %} has-active{% endif %}" id="filters-toggle"
+                  aria-expanded="false" aria-controls="filters-panel">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="10" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="18" r="2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+            <span>Filtres</span>
+            {% if active_filters %}<span class="filters-count">{{ active_filters }}</span>{% endif %}
+          </button>
+
+          <div class="filters-panel" id="filters-panel" role="dialog" aria-label="Filtres" hidden>
+            <fieldset class="fp-group">
+              <legend>Type de service</legend>
+              <div class="fp-pills">
+                <label class="fp-pill"><input type="radio" name="service_category" value=""{% if not filters.service_category %} checked{% endif %}><span>Tous</span></label>
+                {% for tile in service_tiles %}
+                  <label class="fp-pill"><input type="radio" name="service_category" value="{{ tile.key }}"{% if tile.active %} checked{% endif %}><span>{{ tile.label }}</span></label>
+                {% endfor %}
+              </div>
+            </fieldset>
+
+            <fieldset class="fp-group">
+              <legend>Options</legend>
+              <label class="fp-option">
+                <span><strong>À domicile</strong><small>Le coiffeur se déplace chez vous</small></span>
+                <input type="checkbox" name="home_service" value="true"{% if filters.home_service %} checked{% endif %}>
+              </label>
+              <label class="fp-option">
+                <span><strong>Bien notés</strong><small>Note de 4★ et plus</small></span>
+                <input type="checkbox" name="min_rating" value="4"{% if filters.min_rating %} checked{% endif %}>
+              </label>
+              <label class="fp-option">
+                <span><strong>Réservable</strong><small>Le salon accepte les réservations en ce moment</small></span>
+                <input type="checkbox" name="open" value="true"{% if filters.open %} checked{% endif %}>
+              </label>
+            </fieldset>
+
+            <div class="fp-actions">
+              <button type="button" class="link fp-clear" id="filters-clear">Tout effacer</button>
+              <button type="submit" class="btn btn-primary">Appliquer</button>
+            </div>
+          </div>
+        </div>
+      </form>
+
+      <p class="hero-pro">
+        <span>Vous êtes coiffeur ? Remplissez votre agenda avec BookMyCoiff</span>
+        <a href="{% url 'salon_register' %}" class="btn btn-primary btn-sm">Inscrire mon salon</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- Visuel collé au coin supérieur droit, bord gauche en courbe + liseré -->
+  <div class="hero-visual" aria-hidden="true">
+    <svg width="0" height="0" class="sr-only">
+      <clipPath id="hero-curve" clipPathUnits="objectBoundingBox">
+        <path d="M0.34,0 C0.20,0.10 0.30,0.26 0.14,0.40 C0,0.52 0.02,0.78 0.20,0.90 C0.40,1.02 0.74,0.99 1,0.92 L1,0 Z"/>
+      </clipPath>
+    </svg>
+    <div class="hero-ring"></div>
+    <div class="hero-photo">
+      <img src="{% static 'barbershopApp/img/hero.jpg' %}" alt="">
+
+    </div>
+  </div>
+</section>
+
+
+<main class="container results">
+  <div class="results-head">
+    <h2 class="section-title">
+      {{ page.paginator.count }} salon{{ page.paginator.count|pluralize }}
+      {% if located %}<small>· du plus proche au plus loin</small>{% endif %}
+    </h2>
+    <div class="results-tools">
+      {% if filters.search or filters.where or filters.service_category or filters.home_service or filters.open or filters.min_rating or located %}
+        <a href="{% url 'home' %}" class="link">Effacer les filtres</a>
+      {% endif %}
+      {% if page.object_list %}
+        <div class="rail-nav">
+          <button type="button" class="rail-btn" data-rail="prev" aria-label="Salons précédents" disabled>‹</button>
+          <button type="button" class="rail-btn" data-rail="next" aria-label="Salons suivants">›</button>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if page.object_list %}
+    <div class="rail" id="salon-rail" tabindex="0" aria-label="Liste des salons, défilement horizontal">
+      {% for salon in page.object_list %}
+        <article class="card">
+          <button type="button" class="card-media" data-salon="{{ salon.slug }}" aria-label="Voir {{ salon.name }}">
+            {% with cover=salon.cover_image %}
+              {% if cover %}
+                <img src="{{ cover.url }}" alt="" loading="lazy">
+              {% else %}
+                <span class="placeholder">{{ salon.name|slice:":1"|upper }}</span>
+              {% endif %}
+            {% endwith %}
+            <span class="badges">
+              {% if salon.offers_home_service %}<span class="badge">À domicile</span>{% endif %}
+              {% if not salon.is_accepting_bookings %}<span class="badge badge-muted">Fermé</span>{% endif %}
+            </span>
+          </button>
+
+          <div class="card-body">
+            <div class="card-title-row">
+              <h3>{{ salon.name }}</h3>
+              {% if salon.base_rating is not None %}
+                <span class="rating" title="Note {{ salon.base_rating }}/5">
+                  <span class="stars" style="--pct: {% widthratio salon.base_rating 5 100 %}%"></span>
+                  {{ salon.base_rating }}
+                </span>
+              {% else %}
+                <span class="tag-new">Nouveau</span>
+              {% endif %}
+            </div>
+            <p class="muted">{{ salon.address }} · {{ salon.city }}</p>
+            <p class="card-meta">
+              {% if located %}<span>{{ salon.distance_km|floatformat:1 }} km</span>{% endif %}
+              {% if salon.min_price is not None %}<span>À partir de <strong>{{ salon.min_price|floatformat:0 }} {{ currency }}</strong></span>{% endif %}
+            </p>
+            <button type="button" class="btn btn-primary btn-block" data-salon="{{ salon.slug }}">Voir &amp; réserver</button>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+
+    {% if page.has_other_pages %}
+      <nav class="pagination" aria-label="Pages">
+        {% if page.has_previous %}
+          <a class="btn btn-ghost" href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page.previous_page_number }}">← Précédent</a>
+        {% endif %}
+        <span class="muted">Page {{ page.number }} / {{ page.paginator.num_pages }}</span>
+        {% if page.has_next %}
+          <a class="btn btn-ghost" href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page.next_page_number }}">Suivant →</a>
+        {% endif %}
+      </nav>
+    {% endif %}
+  {% else %}
+    <div class="empty">
+      <p class="empty-title">Aucun salon ne correspond à votre recherche.</p>
+      <p class="muted">Essayez un autre quartier ou retirez un filtre.</p>
+    </div>
+  {% endif %}
+</main>
+
+<!--section class="services-band">
+  <div class="container">
+    <h2 class="section-title">Trouver par service</h2>
+    <div class="tiles">
+      {% for tile in service_tiles %}
+        <a href="{{ tile.url }}" class="tile tile-{{ tile.key }}{% if tile.active %} is-active{% endif %}"{% if tile.active %} aria-current="true"{% endif %}>
+          <span class="tile-art">
+            {% if tile.key == "haircut" %}<svg viewBox="0 0 48 48"><circle cx="14" cy="34" r="6"/><circle cx="34" cy="34" r="6"/><path d="M18 30 36 8M30 30 12 8"/></svg>
+            {% elif tile.key == "beard" %}<svg viewBox="0 0 48 48"><path d="M8 14h22l8 6-8 6H8z"/><path d="M14 26v14"/></svg>
+            {% elif tile.key == "braids" %}<svg viewBox="0 0 48 48"><path d="M18 6c-6 6 6 10 0 16s6 10 0 16"/><path d="M30 6c-6 6 6 10 0 16s6 10 0 16"/></svg>
+            {% elif tile.key == "color" %}<svg viewBox="0 0 48 48"><path d="M24 6s12 14 12 22a12 12 0 0 1-24 0c0-8 12-22 12-22z"/></svg>
+            {% elif tile.key == "care" %}<svg viewBox="0 0 48 48"><path d="M24 6v8M24 34v8M6 24h8M34 24h8M12 12l5 5M31 31l5 5M36 12l-5 5M17 31l-5 5"/></svg>
+            {% elif tile.key == "styling" %}<svg viewBox="0 0 48 48"><path d="M8 16h32v8H8z"/><path d="M12 24v14M18 24v14M24 24v14M30 24v14M36 24v14"/></svg>
+            {% else %}<svg viewBox="0 0 48 48"><circle cx="12" cy="24" r="3"/><circle cx="24" cy="24" r="3"/><circle cx="36" cy="24" r="3"/></svg>{% endif %}
+          </span>
+          <span class="tile-label">{{ tile.label }}</span>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+</section-->
+
+<footer class="footer">
+  <div class="container">
+    <span>© BookMyCoiff</span>
+    <span class="muted">Vous êtes coiffeur ? <a href="{% url 'salon_register' %}" class="link">Inscrivez votre salon</a></span>
+  </div>
+</footer>
+
+<!-- Fiche salon : s'ouvre par-dessus la liste, sans changer de page -->
+<dialog id="salon-modal" class="modal" aria-labelledby="modal-title">
+  <button type="button" class="modal-close" aria-label="Fermer">×</button>
+  <div class="modal-body" id="modal-body"></div>
+</dialog>
+
+<script src="{% static 'barbershopApp/home.js' %}" defer></script>
+</body>
+</html>
