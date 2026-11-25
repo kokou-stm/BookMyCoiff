@@ -315,7 +315,7 @@ def salon_register(request):
                 salon = salon_form.save(owner=owner)
             if account_form:
                 login(request, owner, backend="django.contrib.auth.backends.ModelBackend")
-            messages.success(request, f"« {salon.name} » est enregistré. Notre équipe le vérifie avant de le publier.")
+            messages.success(request, f"« {salon.name} » est en ligne : les clients peuvent déjà le trouver.")
             return redirect("my_salons")
     else:
         account_form = OwnerSignupForm(prefix="account") if needs_account else None

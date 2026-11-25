@@ -138,12 +138,12 @@ class ManageApiTests(APITestCase):
         self.client.force_authenticate(self.other)
         r = self.client.post("/api/manage/salons/", {
             "name": "Neuf", "slug": "neuf", "phone": "1", "address": "a", "city": "Lomé",
-            "latitude": "6.1", "longitude": "1.2", "is_published": True, "base_rating": "5.0",
+            "latitude": "6.1", "longitude": "1.2", "is_published": False, "base_rating": "5.0",
         })
         self.assertEqual(r.status_code, 201, r.data)
         salon = Salon.objects.get(slug="neuf")
         self.assertEqual(salon.owner, self.other)
-        self.assertFalse(salon.is_published)
+        self.assertTrue(salon.is_published)  # valeur par défaut, le gérant ne la choisit pas
         self.assertIsNone(salon.base_rating)
 
     def test_owner_sees_only_own_salons(self):
@@ -321,12 +321,12 @@ class SalonRegisterTests(TestCase):
         self.assertTrue(user.check_password("coupe-royale-2026"))
         salon = Salon.objects.get(owner=user)
         self.assertEqual(salon.slug, "coupe-royale")
-        self.assertFalse(salon.is_published)  # en attente de validation
+        self.assertTrue(salon.is_published)  # publié dès l'inscription
         self.assertEqual(list(salon.opening_hours.values_list("weekday", "start_time", "end_time")),
                          [(0, time(9), time(18))])
         self.assertEqual(salon.professionals.get().user, user)
         # Connecté automatiquement
-        self.assertContains(self.client.get("/mes-salons/"), "En attente de validation")
+        self.assertContains(self.client.get("/mes-salons/"), "Publié")
 
     def test_logged_in_owner_skips_account(self):
         owner = get_user_model().objects.create_user("gerant", password="x")

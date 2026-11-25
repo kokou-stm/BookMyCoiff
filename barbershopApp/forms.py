@@ -139,8 +139,8 @@ class SalonForm(forms.ModelForm):
         salon = super().save(commit=False)
         salon.owner = owner
         salon.slug = unique_salon_slug(salon.name)
-        # Le salon reste invisible jusqu'à sa validation par l'équipe
-        salon.is_published = False
+        # Publié tout de suite (pas de validation manuelle pour l'instant)
+        salon.is_published = True
         salon.save()
         OpeningHours.objects.bulk_create(
             OpeningHours(salon=salon, weekday=day, start_time=start, end_time=end)

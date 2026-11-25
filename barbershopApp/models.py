@@ -89,8 +89,9 @@ class Salon(TimestampedModel):
 
     # Flag ouvert/fermé actionnable par le gérant (coupe toutes les réservations)
     is_accepting_bookings = models.BooleanField("accepte les réservations", default=True)
-    # Visibilité sur la plateforme (validation du salon par l'équipe)
-    is_published = models.BooleanField("publié", default=False)
+    # Visibilité sur la plateforme. Publié dès l'inscription pour l'instant ; l'équipe peut le masquer depuis l'admin.
+    # (La validation manuelle avec e-mails viendra plus tard.)
+    is_published = models.BooleanField("publié", default=True)
 
     class Meta:
         ordering = ["name"]
