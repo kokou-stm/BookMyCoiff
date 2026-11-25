@@ -2,7 +2,7 @@ from datetime import date, time
 
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
-from django.test import TestCase
+from django.test import Client, TestCase
 from rest_framework.test import APITestCase
 
 from .models import AvailabilityOverride, OpeningHours, Professional, Salon, Service, WorkingHours
@@ -327,6 +327,29 @@ class SalonRegisterTests(TestCase):
         self.assertEqual(salon.professionals.get().user, user)
         # Connecté automatiquement
         self.assertContains(self.client.get("/mes-salons/"), "Publié")
+
+    def test_double_submit_does_not_duplicate_or_fail(self):
+        """2e envoi du même formulaire (réponse du 1er abandonnée) : pas d'erreur « e-mail existe »."""
+        data = {**self.salon_data(), **self.account_data()}
+        self.client.post(self.URL, data)
+        second = Client().post(self.URL, data, follow=True)  # navigateur sans le cookie du 1er envoi
+        self.assertRedirects(second, "/mes-salons/")
+        self.assertContains(second, "est en ligne")
+        self.assertEqual(Salon.objects.count(), 1)
+        self.assertEqual(get_user_model().objects.count(), 1)
+
+    def test_existing_account_with_right_password_adds_salon(self):
+        self.client.post(self.URL, {**self.salon_data(), **self.account_data()})
+        response = Client().post(self.URL, {**self.salon_data(name="Coupe Royale 2"), **self.account_data()})
+        self.assertRedirects(response, "/mes-salons/")
+        self.assertEqual(Salon.objects.filter(owner__username="kossi@example.com").count(), 2)
+
+    def test_existing_account_with_wrong_password_is_refused(self):
+        self.client.post(self.URL, {**self.salon_data(), **self.account_data()})
+        response = Client().post(self.URL, {**self.salon_data(name="Autre"), **self.account_data(
+            **{"account-password1": "pas-le-bon-1234", "account-password2": "pas-le-bon-1234"})})
+        self.assertContains(response, "Un compte existe déjà")
+        self.assertEqual(Salon.objects.count(), 1)
 
     def test_logged_in_owner_skips_account(self):
         owner = get_user_model().objects.create_user("gerant", password="x")

@@ -17,13 +17,14 @@ from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import login
+from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import permissions, serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -318,10 +319,33 @@ def _service_tiles(query):
 # ---------------------------------------------------------------------------
 
 
+def _login_existing_owner(request):
+    """L'e-mail saisi a déjà un compte et le mot de passe est le bon : on connecte au lieu de refuser."""
+    email = request.POST.get("account-email", "").strip().lower()
+    password = request.POST.get("account-password1", "")
+    if not email or not password:
+        return False
+    user = authenticate(request, username=email, password=password)
+    if user is None:
+        return False
+    login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+    return True
+
+
 def salon_register(request):
     """Inscrire mon salon : crée le compte du gérant (s'il n'est pas connecté) puis le salon."""
     needs_account = not request.user.is_authenticated
     if request.method == "POST":
+        if needs_account and _login_existing_owner(request):
+            needs_account = False
+            # Double envoi (le 1er a déjà tout créé, sa réponse a été abandonnée par le navigateur)
+            recent = request.user.owned_salons.filter(
+                name__iexact=request.POST.get("name", "").strip(),
+                created_at__gte=timezone.now() - timedelta(minutes=15),
+            ).first()
+            if recent:
+                messages.success(request, f"« {recent.name} » est en ligne : les clients peuvent déjà le trouver.")
+                return redirect("my_salons")
         account_form = OwnerSignupForm(request.POST, prefix="account") if needs_account else None
         salon_form = SalonForm(request.POST, request.FILES)
         if salon_form.is_valid() and (account_form is None or account_form.is_valid()):

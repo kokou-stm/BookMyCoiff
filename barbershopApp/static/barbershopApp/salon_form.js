@@ -176,6 +176,22 @@
     if (e.key === "ArrowLeft") goTo(current - 1);
   });
 
+  // Un seul envoi : l'envoi (photo comprise) peut prendre quelques secondes sur mobile, et un
+  // 2e appui ferait abandonner la 1re réponse par le navigateur (« compte existe déjà »).
+  const submitLabel = submitBtn.textContent;
+  form.addEventListener("submit", function (e) {
+    if (form.dataset.sending) { e.preventDefault(); return; }
+    form.dataset.sending = "1";
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Création en cours…";
+  });
+  // Retour arrière vers une page gardée en cache : le bouton doit redevenir utilisable
+  window.addEventListener("pageshow", function () {
+    delete form.dataset.sending;
+    submitBtn.disabled = false;
+    submitBtn.textContent = submitLabel;
+  });
+
   // Après un envoi refusé par le serveur : ouvrir la première étape qui contient une erreur
   const firstError = steps.findIndex(function (step) { return step.querySelector(".error, .has-error, .form-errors"); });
   show(firstError === -1 ? 0 : firstError);
