@@ -91,6 +91,11 @@ az ad app federated-credential create --id $APP_ID --parameters "{
 echo "AZURE_CLIENT_ID=$APP_ID"; echo "AZURE_TENANT_ID=$(az account show --query tenantId -o tsv)"; echo "AZURE_SUBSCRIPTION_ID=$SUB"
 ```
 
+> GitHub peut présenter un sujet avec les identifiants numériques du compte et du dépôt,
+> par ex. `repo:kokou-stm@187449235/BookMyCoiff@1445335457:environment:production`.
+> Si la connexion échoue avec `AADSTS700213: No matching federated identity record`, ajoutez un second identifiant
+> fédéré avec **exactement** le sujet affiché dans l'erreur (même commande, autre `name`).
+
 Puis dans GitHub, ouvrez **Settings → Secrets and variables → Actions** :
 
 | Type | Nom | Valeur |
