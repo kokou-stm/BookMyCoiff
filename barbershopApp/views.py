@@ -12,7 +12,8 @@ Espace prestataire (connecté) : /api/manage/...
     working-hours, overrides                             → gérant, ou le pro lui-même
 """
 
-from datetime import date, timedelta
+from datetime import date, time, timedelta
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib import messages
@@ -21,14 +22,28 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Prefetch, Q
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from rest_framework import permissions, serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .forms import OwnerSignupForm, SalonForm
+from .booking import (
+    BookingError,
+    available_times,
+    bookable_professionals,
+    can_cancel,
+    cancel_booking,
+    create_booking,
+    days_with_slots,
+    find_booking,
+    local_now,
+    normalize_code,
+)
+from .forms import BookingContactForm, BookingLookupForm, OwnerSignupForm, SalonForm
 from .models import (
     AvailabilityOverride,
+    Booking,
     Equipment,
     OpeningHours,
     Professional,
@@ -327,5 +342,149 @@ def salon_register(request):
 
 @login_required
 def my_salons(request):
-    salons = request.user.owned_salons.prefetch_related("opening_hours", "professionals").order_by("-created_at")
-    return render(request, "barbershopApp/my_salons.html", {"salons": salons})
+    upcoming = Booking.objects.filter(date__gte=local_now().date()).select_related("professional").order_by("date", "start_time")
+    salons = request.user.owned_salons.prefetch_related(
+        "opening_hours", "professionals", Prefetch("bookings", queryset=upcoming, to_attr="upcoming_bookings"),
+    ).order_by("-created_at")
+    return render(request, "barbershopApp/my_salons.html", {
+        "salons": salons, "currency": getattr(settings, "BOOKMYCOIFF_CURRENCY", ""),
+    })
+
+
+# ---------------------------------------------------------------------------
+# Réservation en ligne par les clients (sans compte : un code + le téléphone)
+# ---------------------------------------------------------------------------
+
+# Codes des réservations que ce navigateur a le droit de voir (faites ici, ou retrouvées avec le téléphone)
+SESSION_BOOKINGS = "booking_codes"
+
+
+def _remember_booking(request, code):
+    codes = [c for c in request.session.get(SESSION_BOOKINGS, []) if c != code]
+    request.session[SESSION_BOOKINGS] = (codes + [code])[-20:]
+
+
+def _parse_day(value, allowed):
+    try:
+        day = date.fromisoformat(value or "")
+    except ValueError:
+        return None
+    return day if day in allowed else None
+
+
+def _group_times(minutes):
+    groups = {"Matin": [], "Après-midi": [], "Soir": []}
+    for m in minutes:
+        label = f"{m // 60:02d}:{m % 60:02d}"
+        groups["Matin" if m < 12 * 60 else "Après-midi" if m < 17 * 60 else "Soir"].append(label)
+    return [(name, items) for name, items in groups.items() if items]
+
+
+def booking_page(request, slug):
+    """
+    Réservation en une page, étape par étape via l'URL :
+    ?service=<id> → &pro=<id|any> → &date=AAAA-MM-JJ → &time=HH:MM → coordonnées (POST).
+    """
+    salon = get_object_or_404(Salon.objects.filter(is_published=True), slug=slug)
+    params = request.POST if request.method == "POST" else request.GET
+    services = list(salon.services.filter(is_active=True))
+    service = next((s for s in services if str(s.pk) == params.get("service")), None)
+
+    pros = bookable_professionals(salon, service) if service else []
+    pro_param = params.get("pro", "")
+    professional = next((p for p in pros if str(p.pk) == pro_param), None)
+    if service and len(pros) == 1:
+        professional, pro_param = pros[0], str(pros[0].pk)  # un seul coiffeur : pas de choix à faire
+    pro_chosen = bool(service and (professional or (pro_param == "any" and pros)))
+
+    now = local_now()
+    days = days_with_slots(salon, service, professional, now) if pro_chosen else []
+    day = _parse_day(params.get("date"), [d for d, count in days if count])
+    times = available_times(salon, service, day, professional, now) if day else {}
+    start_label = params.get("time", "")
+    start = next((m for m in times if f"{m // 60:02d}:{m % 60:02d}" == start_label), None)
+
+    error = None
+    form = BookingContactForm(request.POST if request.method == "POST" else None) if start is not None else None
+    if request.method == "POST":
+        if start is None:
+            error = "Ce créneau n'est plus disponible. Choisissez une autre heure."
+        elif form.is_valid():
+            try:
+                booking = create_booking(
+                    salon=salon, service=service, professional=professional, day=day,
+                    start=time(start // 60, start % 60), now=now, **form.cleaned_data,
+                )
+            except BookingError as exc:
+                error = str(exc)
+            else:
+                _remember_booking(request, booking.code)
+                return redirect(f"{reverse('booking_detail', args=[booking.code])}?new=1")
+
+    def link(**choices):
+        return "?" + urlencode({k: v for k, v in choices.items() if v not in (None, "")})
+
+    return render(request, "barbershopApp/booking.html", {
+        "salon": salon,
+        "currency": getattr(settings, "BOOKMYCOIFF_CURRENCY", ""),
+        "services": [{"obj": s, "url": link(service=s.pk), "active": s == service} for s in services],
+        "service": service,
+        "pros": [{"obj": p, "url": link(service=service.pk, pro=p.pk), "active": p == professional} for p in pros] if service else [],
+        "any_pro_url": link(service=service.pk, pro="any") if service else "",
+        "any_pro_active": pro_param == "any" and professional is None,
+        "professional": professional,
+        "pro_param": pro_param,
+        "pro_chosen": pro_chosen,
+        "days": [{"day": d, "count": c, "active": d == day,
+                  "url": link(service=service.pk, pro=pro_param, date=d.isoformat())} for d, c in days],
+        "day": day,
+        "has_slots": any(count for _, count in days),
+        "time_groups": [
+            (name, [{"label": t, "active": t == start_label and start is not None,
+                     "url": link(service=service.pk, pro=pro_param, date=day.isoformat(), time=t)} for t in items])
+            for name, items in _group_times(times)
+        ] if day else [],
+        "start_label": start_label if start is not None else "",
+        "form": form,
+        "error": error,
+    })
+
+
+def booking_detail(request, code):
+    code = normalize_code(code)
+    if code not in request.session.get(SESSION_BOOKINGS, []):
+        return redirect(f"{reverse('booking_lookup')}?{urlencode({'code': code})}")
+    booking = get_object_or_404(Booking.objects.select_related("salon", "professional"), code=code)
+    return render(request, "barbershopApp/booking_detail.html", {
+        "booking": booking,
+        "can_cancel": can_cancel(booking),
+        "just_booked": request.GET.get("new") == "1",
+        "currency": getattr(settings, "BOOKMYCOIFF_CURRENCY", ""),
+    })
+
+
+def booking_cancel(request, code):
+    code = normalize_code(code)
+    if request.method != "POST" or code not in request.session.get(SESSION_BOOKINGS, []):
+        return redirect("booking_detail", code=code)
+    booking = get_object_or_404(Booking, code=code)
+    try:
+        cancel_booking(booking)
+    except BookingError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, "Votre réservation est annulée. Le créneau est libéré pour d'autres clients.")
+    return redirect("booking_detail", code=code)
+
+
+def booking_lookup(request):
+    """Retrouver une réservation avec son code + le téléphone utilisé."""
+    form = BookingLookupForm(request.POST or None, initial={"code": request.GET.get("code", "")})
+    not_found = False
+    if request.method == "POST" and form.is_valid():
+        booking = find_booking(form.cleaned_data["code"], form.cleaned_data["phone"])
+        if booking:
+            _remember_booking(request, booking.code)
+            return redirect("booking_detail", code=booking.code)
+        not_found = True
+    return render(request, "barbershopApp/booking_lookup.html", {"form": form, "not_found": not_found})

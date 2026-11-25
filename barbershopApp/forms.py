@@ -157,3 +157,44 @@ def unique_salon_slug(name):
     while Salon.objects.filter(slug=slug).exists():
         slug, n = f"{base}-{n}", n + 1
     return slug
+
+
+# ---------------------------------------------------------------------------
+# Réservation par un client (sans compte)
+# ---------------------------------------------------------------------------
+
+
+def _clean_phone(value):
+    import re
+
+    if len(re.sub(r"\D", "", value)) < 8:
+        raise forms.ValidationError("Numéro de téléphone incomplet.")
+    return value.strip()
+
+
+class BookingContactForm(forms.Form):
+    client_name = forms.CharField(label="Votre nom", max_length=120,
+                                  widget=forms.TextInput(attrs={"autocomplete": "name"}))
+    client_phone = forms.CharField(
+        label="Téléphone", max_length=30,
+        help_text="Avec votre code, il permet de retrouver ou d'annuler la réservation.",
+        widget=forms.TextInput(attrs={"type": "tel", "autocomplete": "tel", "placeholder": "+228 90 00 00 00"}),
+    )
+    client_email = forms.EmailField(label="E-mail", required=False,
+                                    widget=forms.EmailInput(attrs={"autocomplete": "email"}))
+    note = forms.CharField(label="Message pour le salon", max_length=300, required=False,
+                           widget=forms.Textarea(attrs={"rows": 2, "placeholder": "Ex. : coupe courte sur les côtés"}))
+
+    def clean_client_phone(self):
+        return _clean_phone(self.cleaned_data["client_phone"])
+
+
+class BookingLookupForm(forms.Form):
+    code = forms.CharField(label="Code de réservation", max_length=12,
+                           widget=forms.TextInput(attrs={"autocapitalize": "characters", "autocomplete": "off",
+                                                         "placeholder": "Ex. : K7M2QX"}))
+    phone = forms.CharField(label="Téléphone utilisé pour réserver", max_length=30,
+                            widget=forms.TextInput(attrs={"type": "tel", "autocomplete": "tel"}))
+
+    def clean_phone(self):
+        return _clean_phone(self.cleaned_data["phone"])

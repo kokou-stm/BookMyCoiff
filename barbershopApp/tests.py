@@ -369,3 +369,161 @@ class SalonRegisterTests(TestCase):
 
     def test_home_links_to_register_page(self):
         self.assertContains(self.client.get("/"), 'href="/inscrire-mon-salon/"')
+
+
+class BookingTests(TestCase):
+    """Réservation client sans compte : créneaux, code, consultation, annulation."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        cls.owner = get_user_model().objects.create_user("gerant-bk")
+        cls.salon = Salon.objects.create(
+            owner=cls.owner, name="Salon Résa", slug="salon-resa", phone="+228 90 00 00 00",
+            address="1 rue X", city="Lomé", latitude=6.13, longitude=1.22, workstation_count=2,
+        )
+        for weekday in range(7):  # ouvert tous les jours 9h-12h : les tests ne dépendent pas du jour
+            OpeningHours.objects.create(salon=cls.salon, weekday=weekday, start_time=time(9), end_time=time(12))
+        cls.service = Service.objects.create(salon=cls.salon, name="Coupe", price=2500, duration_minutes=30)
+        cls.koffi = Professional.objects.create(salon=cls.salon, display_name="Koffi")
+        cls.yao = Professional.objects.create(salon=cls.salon, display_name="Yao")
+        cls.day = timezone.localdate() + timedelta(days=1)
+
+    def url(self, **params):
+        from urllib.parse import urlencode
+
+        return f"/salons/salon-resa/reserver/?{urlencode(params)}"
+
+    def book(self, start="09:00", phone="+228 90 11 22 33", pro="any", client=None):
+        return (client or self.client).post(self.url(), {
+            "service": self.service.pk, "pro": pro, "date": self.day.isoformat(), "time": start,
+            "client_name": "Ama", "client_phone": phone,
+        })
+
+    # --- Créneaux -------------------------------------------------------------
+
+    def test_slots_every_15_minutes_within_opening_hours(self):
+        from .booking import available_times
+
+        times = available_times(self.salon, self.service, self.day)
+        self.assertEqual(list(times)[0], 9 * 60)
+        self.assertEqual(list(times)[-1], 11 * 60 + 30)  # 11h30 + 30 min = 12h, la fermeture
+        self.assertEqual(len(times), 11)
+        self.assertEqual({p.display_name for p in times[9 * 60]}, {"Koffi", "Yao"})
+
+    def test_booking_blocks_the_pro_and_the_workstations(self):
+        from .booking import available_times, create_booking
+
+        create_booking(salon=self.salon, service=self.service, professional=self.koffi, day=self.day,
+                       start=time(9), client_name="A", client_phone="90000001")
+        times = available_times(self.salon, self.service, self.day)
+        self.assertEqual([p.display_name for p in times[9 * 60]], ["Yao"])
+        self.assertNotIn(9 * 60, available_times(self.salon, self.service, self.day, professional=self.koffi))
+
+        create_booking(salon=self.salon, service=self.service, professional=None, day=self.day,
+                       start=time(9), client_name="B", client_phone="90000002")
+        # 2 postes occupés de 9h à 9h30 : plus rien qui chevauche ce créneau
+        times = available_times(self.salon, self.service, self.day)
+        for minute in (9 * 60, 9 * 60 + 15):
+            self.assertNotIn(minute, times)
+        self.assertIn(9 * 60 + 30, times)
+
+    def test_minimum_notice_today(self):
+        from datetime import datetime
+
+        from django.utils import timezone
+
+        from .booking import available_times
+
+        now = timezone.make_aware(datetime.combine(self.day, time(10, 5)))
+        times = available_times(self.salon, self.service, self.day, now=now)
+        self.assertEqual(list(times)[0], 10 * 60 + 45)  # 10h05 + 30 min, arrondi au quart d'heure
+
+    def test_closed_salon_has_no_slots(self):
+        from .booking import available_times
+
+        self.salon.is_accepting_bookings = False
+        self.salon.save()
+        self.assertEqual(available_times(self.salon, self.service, self.day), {})
+
+    # --- Parcours client ---------------------------------------------------------
+
+    def test_booking_page_steps(self):
+        self.assertContains(self.client.get(self.url()), "Coupe")
+        page = self.client.get(self.url(service=self.service.pk))
+        self.assertContains(page, "Peu importe")
+        page = self.client.get(self.url(service=self.service.pk, pro="any", date=self.day.isoformat()))
+        self.assertContains(page, "09:00")
+        page = self.client.get(self.url(service=self.service.pk, pro="any", date=self.day.isoformat(), time="09:00"))
+        self.assertContains(page, "Confirmer la réservation")
+
+    def test_book_without_account_and_get_a_code(self):
+        from .models import Booking
+
+        response = self.book()
+        booking = Booking.objects.get()
+        self.assertRedirects(response, f"/reservation/{booking.code}/?new=1")
+        self.assertEqual(len(booking.code), 6)
+        self.assertEqual((booking.start_time, booking.end_time), (time(9), time(9, 30)))
+        self.assertEqual(booking.service_name, "Coupe")
+        self.assertIsNotNone(booking.professional)
+
+        page = self.client.get(f"/reservation/{booking.code}/?new=1")
+        self.assertContains(page, "C'est réservé")
+        self.assertContains(page, booking.code)
+
+    def test_code_alone_does_not_give_access(self):
+        from django.test import Client
+
+        from .models import Booking
+
+        self.book()
+        code = Booking.objects.get().code
+        stranger = Client()
+        self.assertRedirects(stranger.get(f"/reservation/{code}/"), f"/reservation/?code={code}")
+        bad = stranger.post("/reservation/", {"code": code, "phone": "90 99 99 99"})
+        self.assertContains(bad, "Aucune réservation ne correspond")
+        # Même numéro écrit autrement + code en minuscules : retrouvé
+        ok = stranger.post("/reservation/", {"code": code.lower(), "phone": "90112233"})
+        self.assertRedirects(ok, f"/reservation/{code}/")
+        self.assertContains(stranger.get(f"/reservation/{code}/"), code)
+
+    def test_cancel_frees_the_slot(self):
+        from .booking import available_times
+        from .models import Booking
+
+        self.book(pro=self.koffi.pk)
+        booking = Booking.objects.get()
+        self.client.post(f"/reservation/{booking.code}/annuler/")
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, Booking.Status.CANCELLED_BY_CLIENT)
+        self.assertIn(9 * 60, available_times(self.salon, self.service, self.day, professional=self.koffi))
+
+    def test_slot_taken_meanwhile_is_refused(self):
+        from .models import Booking
+
+        self.book(pro=self.koffi.pk, phone="90000001")
+        response = self.book(pro=self.koffi.pk, phone="90000002")
+        self.assertContains(response, "plus disponible")
+        self.assertEqual(Booking.objects.count(), 1)
+
+    def test_limit_of_upcoming_bookings_per_phone(self):
+        from .models import Booking
+
+        for start in ("09:00", "10:00", "11:00"):
+            self.book(start=start)
+        response = self.book(start="11:30")
+        self.assertContains(response, "déjà 3 réservations")
+        self.assertEqual(Booking.objects.count(), 3)
+
+    def test_invalid_phone_is_rejected(self):
+        response = self.book(phone="123")
+        self.assertContains(response, "Numéro de téléphone incomplet")
+
+    def test_owner_sees_bookings(self):
+        self.book()
+        self.client.force_login(self.owner)
+        self.assertContains(self.client.get("/mes-salons/"), "Ama")

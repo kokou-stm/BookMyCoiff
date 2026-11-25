@@ -140,7 +140,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'fr'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Africa/Lome'  # heure des salons (UTC+0, sans heure d'été)
 
 USE_I18N = True
 

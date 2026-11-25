@@ -1,8 +1,10 @@
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.utils import timezone
 from django.utils.html import format_html
 
 from .models import (
     AvailabilityOverride,
+    Booking,
     Equipment,
     OpeningHours,
     Professional,
@@ -84,3 +86,20 @@ class AvailabilityOverrideAdmin(admin.ModelAdmin):
     list_display = ("professional", "date", "kind", "start_time", "end_time", "reason")
     list_filter = ("kind", "date", "professional__salon")
     date_hierarchy = "date"
+
+
+@admin.register(Booking)
+class BookingAdmin(admin.ModelAdmin):
+    list_display = ("code", "date", "start_time", "salon", "professional", "service_name", "client_name", "client_phone", "status")
+    list_filter = ("status", "date", "salon")
+    search_fields = ("code", "client_name", "client_phone", "client_email", "salon__name")
+    date_hierarchy = "date"
+    readonly_fields = ("code", "created_at", "updated_at", "cancelled_at")
+    actions = ["cancel_by_salon"]
+
+    @admin.action(description="Annuler (au nom du salon)")
+    def cancel_by_salon(self, request, queryset):
+        count = queryset.filter(status=Booking.Status.CONFIRMED).update(
+            status=Booking.Status.CANCELLED_BY_SALON, cancelled_at=timezone.now(), updated_at=timezone.now()
+        )
+        self.message_user(request, f"{count} réservation(s) annulée(s).", messages.SUCCESS)

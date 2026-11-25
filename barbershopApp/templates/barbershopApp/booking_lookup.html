@@ -1,0 +1,19 @@
+{% extends "barbershopApp/base.html" %}
+
+{% block title %}Retrouver ma réservation — BookMyCoiff{% endblock %}
+
+{% block content %}
+<div class="auth-box">
+  <h1>Retrouver ma réservation</h1>
+  <p class="muted">Entrez le code reçu après votre réservation et le téléphone utilisé.</p>
+  <form method="post" class="form-card" novalidate>
+    {% csrf_token %}
+    {% if not_found %}
+      <div class="form-errors"><p>Aucune réservation ne correspond à ce code et ce téléphone.</p></div>
+    {% endif %}
+    {% include "barbershopApp/_field.html" with field=form.code %}
+    {% include "barbershopApp/_field.html" with field=form.phone %}
+    <button type="submit" class="btn btn-primary btn-block">Voir ma réservation</button>
+  </form>
+</div>
+{% endblock %}

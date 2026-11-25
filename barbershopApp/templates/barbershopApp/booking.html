@@ -1,0 +1,152 @@
+{% extends "barbershopApp/base.html" %}
+
+{% block title %}Réserver — {{ salon.name }} — BookMyCoiff{% endblock %}
+
+{% block content %}
+<div class="form-head">
+  <a href="{% url 'home' %}?salon={{ salon.slug }}" class="link back-link">← Retour au salon</a>
+  <h1>Réserver chez {{ salon.name }}</h1>
+  <p class="muted">{{ salon.address }}, {{ salon.city }} · Sans création de compte</p>
+</div>
+
+{% if error %}<div class="form-errors">{{ error }}</div>{% endif %}
+
+{% if not salon.is_accepting_bookings %}
+  <div class="empty">
+    <p class="empty-title">Ce salon ne prend pas de réservation pour le moment</p>
+    <p class="muted">Contactez-le directement : <a class="link" href="tel:{{ salon.phone }}">{{ salon.phone }}</a></p>
+  </div>
+{% else %}
+
+<div class="bk">
+  {# 1. Prestation #}
+  <section class="bk-step{% if service %} is-done{% endif %}">
+    <h2><span class="bk-num">1</span> Prestation</h2>
+    {% if service %}
+      <div class="bk-summary">
+        <span><strong>{{ service.name }}</strong> · {{ service.duration_minutes }} min · {{ service.price|floatformat:"0g" }} {{ currency }}</span>
+        <a href="?" class="link">Modifier</a>
+      </div>
+    {% elif services %}
+      <div class="bk-options">
+        {% for s in services %}
+          <a href="{{ s.url }}" class="bk-option">
+            <span class="bk-option-title">{{ s.obj.name }}</span>
+            <span class="muted">{{ s.obj.duration_minutes }} min</span>
+            <span class="bk-price">{{ s.obj.price|floatformat:"0g" }} {{ currency }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="muted">Ce salon n'a pas encore ajouté ses prestations.</p>
+    {% endif %}
+  </section>
+
+  {# 2. Coiffeur #}
+  {% if service %}
+  <section class="bk-step{% if pro_chosen %} is-done{% endif %}">
+    <h2><span class="bk-num">2</span> Coiffeur</h2>
+    {% if not pros %}
+      <p class="muted">Aucun coiffeur ne prend de réservation pour cette prestation en ce moment.</p>
+    {% elif pro_chosen %}
+      <div class="bk-summary">
+        <span><strong>{% if professional %}{{ professional.display_name }}{% else %}Peu importe{% endif %}</strong>
+          {% if not professional %}<span class="muted">· le premier coiffeur disponible</span>{% endif %}</span>
+        {% if pros|length > 1 %}<a href="?service={{ service.pk }}" class="link">Modifier</a>{% endif %}
+      </div>
+    {% else %}
+      <div class="bk-options">
+        <a href="{{ any_pro_url }}" class="bk-option">
+          <span class="bk-option-title">Peu importe</span>
+          <span class="muted">Le premier coiffeur disponible : plus de créneaux</span>
+        </a>
+        {% for p in pros %}
+          <a href="{{ p.url }}" class="bk-option">
+            <span class="bk-option-title">{{ p.obj.display_name }}</span>
+            <span class="muted">{% if p.obj.years_of_experience %}{{ p.obj.years_of_experience }} an{{ p.obj.years_of_experience|pluralize }} d'expérience{% else %}Coiffeur{% endif %}</span>
+          </a>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {# 3. Jour #}
+  {% if pro_chosen %}
+  <section class="bk-step{% if day %} is-done{% endif %}">
+    <h2><span class="bk-num">3</span> Jour</h2>
+    <div class="bk-days">
+      {% for d in days %}
+        {% if d.count %}
+          <a href="{{ d.url }}" class="bk-day{% if d.active %} is-active{% endif %}"{% if d.active %} aria-current="date"{% endif %}>
+            <span class="bk-day-name">{{ d.day|date:"D" }}</span>
+            <span class="bk-day-num">{{ d.day|date:"j" }}</span>
+            <span class="bk-day-month">{{ d.day|date:"M" }}</span>
+          </a>
+        {% else %}
+          <span class="bk-day is-off" title="Complet ou fermé">
+            <span class="bk-day-name">{{ d.day|date:"D" }}</span>
+            <span class="bk-day-num">{{ d.day|date:"j" }}</span>
+            <span class="bk-day-month">{{ d.day|date:"M" }}</span>
+          </span>
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% if not has_slots %}
+      <p class="muted bk-hint">Aucun créneau libre sur les deux prochaines semaines.
+        Appelez le salon : <a class="link" href="tel:{{ salon.phone }}">{{ salon.phone }}</a></p>
+    {% elif not day %}<p class="muted bk-hint">Les jours grisés sont complets ou fermés.</p>{% endif %}
+  </section>
+  {% endif %}
+
+  {# 4. Heure #}
+  {% if day %}
+  <section class="bk-step{% if form %} is-done{% endif %}">
+    <h2><span class="bk-num">4</span> Heure <span class="muted bk-sub">· {{ day|date:"l j F" }}</span></h2>
+    {% for name, items in time_groups %}
+      <div class="bk-time-group">
+        <h3>{{ name }}</h3>
+        <div class="bk-times">
+          {% for t in items %}
+            <a href="{{ t.url }}" class="bk-time{% if t.active %} is-active{% endif %}">{{ t.label }}</a>
+          {% endfor %}
+        </div>
+      </div>
+    {% empty %}
+      <p class="muted">Plus de créneau ce jour-là. Choisissez un autre jour.</p>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  {# 5. Coordonnées #}
+  {% if form %}
+  <section class="bk-step bk-step-final" id="coordonnees">
+    <h2><span class="bk-num">5</span> Vos coordonnées</h2>
+    <div class="bk-recap">
+      <div><span class="muted">Quand</span><strong>{{ day|date:"l j F" }} à {{ start_label }}</strong></div>
+      <div><span class="muted">Prestation</span><strong>{{ service.name }} · {{ service.price|floatformat:"0g" }} {{ currency }}</strong></div>
+      <div><span class="muted">Avec</span><strong>{% if professional %}{{ professional.display_name }}{% else %}Le premier coiffeur disponible{% endif %}</strong></div>
+    </div>
+    <form method="post" action="#coordonnees" class="bk-form" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="service" value="{{ service.pk }}">
+      <input type="hidden" name="pro" value="{{ pro_param }}">
+      <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
+      <input type="hidden" name="time" value="{{ start_label }}">
+      <div class="grid-2">
+        {% include "barbershopApp/_field.html" with field=form.client_name %}
+        {% include "barbershopApp/_field.html" with field=form.client_phone %}
+        {% include "barbershopApp/_field.html" with field=form.client_email wide=True %}
+        {% include "barbershopApp/_field.html" with field=form.note wide=True %}
+      </div>
+      <button type="submit" class="btn btn-primary btn-block bk-submit">Confirmer la réservation</button>
+      <p class="muted bk-hint">Paiement au salon. Vous recevez un code pour retrouver ou annuler votre réservation.</p>
+    </form>
+  </section>
+  {% endif %}
+</div>
+
+{% endif %}
+
+<p class="muted bk-lookup">Déjà réservé ? <a href="{% url 'booking_lookup' %}" class="link">Retrouver ma réservation</a></p>
+{% endblock %}

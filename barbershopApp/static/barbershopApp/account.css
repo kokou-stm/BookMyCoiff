@@ -127,3 +127,94 @@
   .stepper-label { display: none; }
   .stepper .is-current .stepper-label { display: block; }
 }
+
+/* ---------------------------------------------------------------------------
+   Réservation client
+   --------------------------------------------------------------------------- */
+.back-link { display: inline-block; margin-bottom: 10px; font-size: .92rem; }
+.bk { display: flex; flex-direction: column; gap: 12px; }
+.bk-step { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
+.bk-step h2 { display: flex; align-items: center; gap: 10px; font-size: 1.08rem; margin-bottom: 14px; }
+.bk-step.is-done h2 { margin-bottom: 8px; }
+.bk-num {
+  width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; flex: none;
+  background: var(--accent); color: #fff; font-size: .82rem; font-weight: 700;
+}
+.bk-step.is-done .bk-num { background: var(--accent-soft); color: var(--accent); }
+.bk-sub { font-weight: 500; font-size: .95rem; }
+.bk-summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding-left: 36px; }
+.bk-hint { margin-top: 10px; }
+
+.bk-options { display: grid; gap: 8px; }
+.bk-option {
+  display: grid; grid-template-columns: 1fr auto; grid-template-areas: "title price" "meta price";
+  gap: 2px 12px; align-items: center; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px;
+  color: var(--ink); text-decoration: none; transition: border-color .15s, background .15s;
+}
+.bk-option:hover { border-color: var(--accent); background: var(--accent-soft); }
+.bk-option-title { grid-area: title; font-weight: 600; }
+.bk-option .muted { grid-area: meta; font-size: .86rem; }
+.bk-price { grid-area: price; font-weight: 700; white-space: nowrap; }
+
+/* Bande de jours : défile horizontalement sur mobile */
+.bk-days { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x proximity; }
+.bk-day {
+  flex: 0 0 64px; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 8px 4px;
+  border: 1px solid var(--line); border-radius: 12px; color: var(--ink); text-decoration: none; scroll-snap-align: start;
+}
+a.bk-day:hover { border-color: var(--accent); }
+.bk-day.is-active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.bk-day.is-off { color: var(--muted); background: var(--bg); opacity: .55; cursor: not-allowed; }
+.bk-day-name, .bk-day-month { font-size: .74rem; text-transform: capitalize; }
+.bk-day-num { font-size: 1.25rem; font-weight: 800; line-height: 1.1; }
+
+.bk-time-group + .bk-time-group { margin-top: 14px; }
+.bk-time-group h3 { font-size: .85rem; color: var(--muted); font-weight: 600; margin-bottom: 8px; }
+.bk-times { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
+.bk-time {
+  text-align: center; padding: 9px 0; border: 1px solid var(--line); border-radius: 10px;
+  color: var(--ink); text-decoration: none; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.bk-time:hover { border-color: var(--accent); color: var(--accent); }
+.bk-time.is-active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.bk-step-final { border-color: var(--accent); box-shadow: var(--shadow); }
+.bk-recap { display: grid; gap: 10px; background: var(--bg); border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; }
+.bk-recap > div { display: flex; flex-direction: column; gap: 1px; }
+.bk-recap .muted { font-size: .8rem; }
+.bk-submit { margin-top: 18px; padding: 13px 16px; font-size: 1rem; }
+.bk-lookup { text-align: center; margin-top: 24px; }
+
+/* Confirmation */
+.bk-done { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 20px; }
+.bk-done h1 { font-size: clamp(1.6rem, 3vw, 2.1rem); letter-spacing: -.03em; font-weight: 800; }
+.bk-done-icon {
+  width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center;
+  background: #dcfce7; color: #166534; font-size: 1.8rem; font-weight: 800;
+}
+.bk-code-box {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 8px 0;
+  background: var(--surface); border: 2px dashed var(--accent); border-radius: 16px; padding: 16px 28px;
+}
+.bk-code { font-size: 2.2rem; letter-spacing: .18em; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--accent); }
+.bk-detail .bk-recap { margin-bottom: 16px; }
+.bk-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.bk-cancel { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.bk-cancel .btn { color: #b91c1c; }
+
+/* Mes salons : rendez-vous */
+.bookings-block { margin: -4px 0 20px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.bookings-block h3 { font-size: .95rem; margin-bottom: 10px; }
+.booking-line { display: grid; grid-template-columns: 130px 1fr auto; gap: 12px; align-items: start; padding: 10px 0; border-top: 1px solid var(--line); font-size: .92rem; }
+.booking-line:first-of-type { border-top: 0; }
+.booking-when { font-weight: 700; text-transform: capitalize; }
+.booking-status { font-family: ui-monospace, Menlo, monospace; font-size: .85rem; color: var(--muted); }
+.booking-line.is-cancelled { opacity: .55; }
+.booking-line.is-cancelled .booking-what strong { text-decoration: line-through; }
+
+@media (max-width: 640px) {
+  .bk-step { padding: 16px; }
+  .bk-summary { padding-left: 0; }
+  .booking-line { grid-template-columns: 1fr auto; }
+  .booking-what { grid-column: 1 / -1; grid-row: 2; }
+}

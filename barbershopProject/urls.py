@@ -21,12 +21,25 @@ from django.contrib.auth import views as auth_views
 from django.urls import include, path
 
 from barbershopApp.forms import LoginForm
-from barbershopApp.views import home, my_salons, salon_register
+from barbershopApp.views import (
+    booking_cancel,
+    booking_detail,
+    booking_lookup,
+    booking_page,
+    home,
+    my_salons,
+    salon_register,
+)
 
 urlpatterns = [
     path('', home, name='home'),
     path('inscrire-mon-salon/', salon_register, name='salon_register'),
     path('mes-salons/', my_salons, name='my_salons'),
+    # Réservation client (sans compte)
+    path('salons/<slug:slug>/reserver/', booking_page, name='booking'),
+    path('reservation/', booking_lookup, name='booking_lookup'),
+    path('reservation/<str:code>/', booking_detail, name='booking_detail'),
+    path('reservation/<str:code>/annuler/', booking_cancel, name='booking_cancel'),
     path('connexion/', auth_views.LoginView.as_view(
         template_name='barbershopApp/login.html', authentication_form=LoginForm, redirect_authenticated_user=True,
     ), name='login'),

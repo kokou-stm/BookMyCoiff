@@ -165,6 +165,10 @@
     }
   }
 
+  function bookingUrl(slug, serviceId) {
+    return `/salons/${encodeURIComponent(slug)}/reserver/` + (serviceId ? `?service=${encodeURIComponent(serviceId)}` : "");
+  }
+
   function renderSalon(s) {
     const settingPhotos = s.photos.filter((p) => p.kind === "setting");
     // La couverture passe en premier dans la galerie (sans doublon si c'est déjà une photo « cadre »)
@@ -190,15 +194,16 @@
       ),
       s.description && h("p", { class: "m-desc" }, s.description),
       h("div", { class: "m-actions" },
-        h("a", { class: "btn btn-primary", href: `tel:${s.phone}` }, "Appeler le salon"),
+        s.is_accepting_bookings && h("a", { class: "btn btn-primary", href: bookingUrl(s.slug) }, "Réserver en ligne"),
+        h("a", { class: s.is_accepting_bookings ? "btn btn-light" : "btn btn-primary", href: `tel:${s.phone}` }, "Appeler le salon"),
         phoneDigits && h("a", { class: "btn btn-light", href: `https://wa.me/${phoneDigits}`, target: "_blank", rel: "noopener" }, "WhatsApp"),
         h("a", {
           class: "btn btn-ghost", target: "_blank", rel: "noopener",
           href: `https://www.google.com/maps/search/?api=1&query=${s.latitude},${s.longitude}`,
         }, "Itinéraire")
       ),
-      h("p", { class: "notice" },
-        "La réservation en ligne arrive bientôt. En attendant, consultez les disponibilités ci-dessous et contactez le salon.")
+      s.is_accepting_bookings && h("p", { class: "notice" },
+        "Réservation sans création de compte : vous recevez un code pour retrouver ou annuler votre rendez-vous.")
     );
 
     const services = s.services.length > 0 && h("div", { class: "m-section" },
@@ -211,7 +216,9 @@
             sv.description && h("div", { class: "s-desc" }, sv.description)
           ),
           h("td", { class: "s-time" }, duration(sv.duration_minutes)),
-          h("td", { class: "s-price" }, price(sv.price))
+          h("td", { class: "s-price" }, price(sv.price)),
+          s.is_accepting_bookings && h("td", { class: "s-book" },
+            h("a", { class: "btn btn-light btn-sm", href: bookingUrl(s.slug, sv.id) }, "Réserver"))
         )
       )))
     );

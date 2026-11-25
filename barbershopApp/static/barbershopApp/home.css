@@ -305,6 +305,7 @@ h1, h2, h3, p { margin: 0; }
 .services .s-desc { color: var(--muted); font-size: .85rem; }
 .services .s-time { color: var(--ink-2); white-space: nowrap; padding: 10px 12px; }
 .services .s-price { text-align: right; font-weight: 700; white-space: nowrap; }
+.services .s-book { text-align: right; padding-left: 12px; width: 1%; }
 
 .pros { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
 .pro { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; gap: 10px; }
