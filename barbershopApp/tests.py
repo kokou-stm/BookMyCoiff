@@ -550,3 +550,54 @@ class BookingTests(TestCase):
         self.book()
         self.client.force_login(self.owner)
         self.assertContains(self.client.get("/mes-salons/"), "Ama")
+
+
+class AccountTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        User.objects.create_user("kokou", email="Kokou@Example.com", password="mot-de-passe-2026")
+        User.objects.create_user("gerant@example.com", email="gerant@example.com", password="autre-passe-2026")
+
+    def login(self, username, password):
+        return self.client.post("/connexion/", {"username": username, "password": password})
+
+    def test_login_with_username(self):
+        self.assertRedirects(self.login("kokou", "mot-de-passe-2026"), "/mes-salons/")
+
+    def test_login_with_email_any_case(self):
+        self.assertRedirects(self.login("  kokou@EXAMPLE.com ", "mot-de-passe-2026"), "/mes-salons/")
+        self.assertRedirects(Client().post("/connexion/", {"username": "Gerant@Example.com", "password": "autre-passe-2026"}),
+                             "/mes-salons/")
+
+    def test_wrong_password_shows_french_error(self):
+        response = self.login("kokou", "mauvais")
+        self.assertContains(response, "mot de passe incorrect")
+
+    def test_change_password(self):
+        self.client.post("/connexion/", {"username": "kokou", "password": "mot-de-passe-2026"})
+        response = self.client.post("/mot-de-passe/", {
+            "old_password": "mot-de-passe-2026", "new_password1": "nouveau-passe-2027", "new_password2": "nouveau-passe-2027",
+        })
+        self.assertRedirects(response, "/mes-salons/")
+        self.assertTrue(get_user_model().objects.get(username="kokou").check_password("nouveau-passe-2027"))
+
+    def test_password_reset_by_email(self):
+        from django.core import mail
+        response = self.client.post("/mot-de-passe-oublie/", {"email": "kokou@example.com"})
+        self.assertRedirects(response, "/mot-de-passe-oublie/envoye/")
+        self.assertEqual(len(mail.outbox), 1)
+        link = next(line for line in mail.outbox[0].body.splitlines() if "/mot-de-passe-oublie/" in line).strip()
+        path = link.split("://", 1)[1].split("/", 1)[1]
+        form = self.client.get("/" + path, follow=True)  # redirige vers l'URL « set-password »
+        response = self.client.post(form.redirect_chain[-1][0], {
+            "new_password1": "tout-neuf-2027", "new_password2": "tout-neuf-2027",
+        })
+        self.assertRedirects(response, "/mes-salons/")
+        self.assertTrue(get_user_model().objects.get(username="kokou").check_password("tout-neuf-2027"))
+
+    def test_password_reset_disabled_without_smtp(self):
+        from django.core import mail
+        with self.settings(EMAIL_ENABLED=False):
+            response = self.client.post("/mot-de-passe-oublie/", {"email": "kokou@example.com"})
+        self.assertContains(response, "pas encore disponible")
+        self.assertEqual(len(mail.outbox), 0)

@@ -6,7 +6,7 @@
 <div class="form-head form-head-row">
   <div>
     <h1>Mes salons</h1>
-    <p class="muted">Bonjour {{ user.first_name|default:user.username }}.</p>
+    <p class="muted">Bonjour {{ user.first_name|default:user.username }}. · <a href="{% url 'password_change' %}" class="link">Changer mon mot de passe</a></p>
   </div>
   <a href="{% url 'salon_register' %}" class="btn btn-primary">Ajouter un salon</a>
 </div>

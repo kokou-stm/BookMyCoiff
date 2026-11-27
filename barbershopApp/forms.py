@@ -15,10 +15,16 @@ User = get_user_model()
 class LoginForm(AuthenticationForm):
     """Connexion par e-mail : l'e-mail sert d'identifiant (username) à l'inscription."""
 
-    username = forms.EmailField(label="E-mail", widget=forms.EmailInput(attrs={"autofocus": True, "autocomplete": "email"}))
+    username = forms.CharField(label="E-mail ou identifiant", max_length=254,
+                               widget=forms.TextInput(attrs={"autofocus": True, "autocomplete": "username", "autocapitalize": "none"}))
+    error_messages = {
+        **AuthenticationForm.error_messages,
+        "invalid_login": "E-mail (ou identifiant) ou mot de passe incorrect.",
+        "inactive": "Ce compte est désactivé.",
+    }
 
     def clean_username(self):
-        return self.cleaned_data["username"].strip().lower()
+        return self.cleaned_data["username"].strip()
 
 
 class OwnerSignupForm(forms.Form):

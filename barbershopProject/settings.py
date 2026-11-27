@@ -206,6 +206,8 @@ else:
         },
     }
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'BookMyCoiff <no-reply@bookmycoiff.local>')
+# Fonctions qui envoient des e-mails (mot de passe oublié) : actives seulement si un SMTP est configuré
+EMAIL_ENABLED = not IS_PRODUCTION or bool(os.environ.get('EMAIL_HOST'))
 
 
 # Django REST Framework
@@ -222,6 +224,13 @@ BOOKMYCOIFF_CURRENCY = 'FCFA'
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'my_salons'
 LOGOUT_REDIRECT_URL = 'home'
+# Connexion avec l'e-mail ou l'identifiant
+AUTHENTICATION_BACKENDS = [
+    'barbershopApp.auth_backends.EmailOrUsernameBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+# Lien « mot de passe oublié » valable 1 jour
+PASSWORD_RESET_TIMEOUT = 60 * 60 * 24
 
 
 # ---------------------------------------------------------------------------

@@ -31,6 +31,16 @@
   outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .field input[type="file"] { font: inherit; font-size: .9rem; }
+.pw-wrap { position: relative; }
+.pw-wrap input { padding-right: 84px !important; }
+.pw-toggle {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  font: inherit; font-size: .82rem; font-weight: 600; color: var(--accent);
+  background: none; border: 0; padding: 6px 8px; border-radius: 8px; cursor: pointer;
+}
+.pw-toggle:hover { background: var(--accent-soft); }
+.label-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.label-row .link { font-size: .85rem; font-weight: 500; }
 .help { color: var(--muted); font-size: .82rem; }
 .error { color: #b91c1c; font-size: .84rem; font-weight: 500; }
 .has-error input, .has-error textarea { border-color: #dc2626 !important; }

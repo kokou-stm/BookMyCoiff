@@ -18,12 +18,14 @@ from urllib.parse import urlencode
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login
+from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
+from django.contrib.messages.views import SuccessMessageMixin
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from rest_framework import permissions, serializers, viewsets
 from rest_framework.decorators import action
@@ -317,6 +319,30 @@ def _service_tiles(query):
 # ---------------------------------------------------------------------------
 # Pages prestataire : inscription d'un salon (sans passer par l'admin)
 # ---------------------------------------------------------------------------
+
+
+class PasswordChangeView(SuccessMessageMixin, auth_views.PasswordChangeView):
+    template_name = "barbershopApp/password_change.html"
+    success_url = reverse_lazy("my_salons")
+    success_message = "Votre mot de passe a été modifié."
+
+
+class PasswordResetView(auth_views.PasswordResetView):
+    """Mot de passe oublié : envoie un lien par e-mail (désactivé tant qu'aucun SMTP n'est configuré)."""
+
+    template_name = "barbershopApp/password_reset.html"
+    email_template_name = "barbershopApp/emails/password_reset.txt"
+    subject_template_name = "barbershopApp/emails/password_reset_subject.txt"
+    success_url = reverse_lazy("password_reset_done")
+    extra_email_context = {"site_name": "BookMyCoiff"}
+
+    def get_context_data(self, **kwargs):
+        return {**super().get_context_data(**kwargs), "enabled": settings.EMAIL_ENABLED}
+
+    def post(self, request, *args, **kwargs):
+        if not settings.EMAIL_ENABLED:
+            return self.get(request, *args, **kwargs)
+        return super().post(request, *args, **kwargs)
 
 
 def _login_existing_owner(request):
